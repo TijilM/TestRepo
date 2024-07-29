@@ -59,6 +59,14 @@ def get_melted_frame(data_dict, frame_names, keepcol=None, dropcol=None):
 
 
 def filter_on_date(df, start, end, date_col="DATE"):
+    print(type(df[date_col].iloc[0]))
+    print(df[date_col].dtype)
+    if df[date_col].dtype != np.datetime64:
+        df[date_col] = pd.to_datetime(df[date_col])
+        print("rinkiya kei papa")
+    print(type(pd.to_datetime(start)))
+    print(type(pd.to_datetime(end)))
+    print("---------------------------------")
     df = df[(df[date_col] >= pd.to_datetime(start)) &
             (df[date_col] <= pd.to_datetime(end))]
     return df
@@ -82,9 +90,9 @@ def main(start_data, end_data):
 
     ###### SET UP PAGE ######
     icon_path = os.path.join(".", "raw", "esg_ai_logo.png")
-    st.set_page_config(page_title="ESG AI", page_icon=icon_path,
-                       layout='centered', initial_sidebar_state="collapsed")
-    _, logo, _ = st.beta_columns(3)
+    # st.set_page_config(page_title="ESG AI", page_icon=icon_path,
+                    #    layout='centered', initial_sidebar_state="collapsed")
+    _, logo, _ = st.columns(3)
     logo.image(icon_path, width=200)
     style = ("text-align:center; padding: 0px; font-family: arial black;, "
              "font-size: 400%")
@@ -142,7 +150,7 @@ def main(start_data, end_data):
         ind_esg_df = filter_on_date(ind_esg_df, start, end)
         tone_df = filter_on_date(tone_df, start, end)
         ind_tone_df = filter_on_date(ind_tone_df, start, end)
-        date_filtered = filter_on_date(df_data, start, end)
+        # date_filtered = filter_on_date(df_data, start, end)
 
 
         ###### PUBLISHER SELECT BOX ######
@@ -153,7 +161,7 @@ def main(start_data, end_data):
 
 
         ###### DISPLAY DATA ######
-        URL_Expander = st.beta_expander(f"View {company.title()} Data:", True)
+        URL_Expander = st.expander(f"View {company.title()} Data:", True)
         URL_Expander.write(f"### {len(df_company):,d} Matching Articles for " +
                            company.title())
         display_cols = ["DATE", "SourceCommonName", "Tone", "Polarity",
@@ -172,7 +180,7 @@ def main(start_data, end_data):
 
         ###### CHART: METRIC OVER TIME ######
         st.markdown("---")
-        col1, col2 = st.beta_columns((1, 3))
+        col1, col2 = st.columns((1, 3))
 
         metric_options = ["Tone", "NegativeTone", "PositiveTone", "Polarity",
                           "ActivityDensity", "WordCount", "Overall Score",
@@ -235,12 +243,22 @@ def main(start_data, end_data):
 
 
         ###### CHART: ESG RADAR ######
-        col1, col2 = st.beta_columns((1, 2))
+        col1, col2 = st.columns((1, 2))
         avg_esg = data["ESG"]
         avg_esg.rename(columns={"Unnamed: 0": "Type"}, inplace=True)
         avg_esg.replace({"T": "Overall", "E": "Environment",
                          "S": "Social", "G": "Governance"}, inplace=True)
-        avg_esg["Industry Average"] = avg_esg.mean(axis=1)
+        
+        # avg_esg["Industry Average"] = avg_esg.mean(axis=1)
+        numeric_cols = avg_esg.select_dtypes(include=[float, int]).columns
+        st.write("Numeric columns for averaging:", numeric_cols)
+        
+        avg_esg["Industry Average"] = avg_esg[numeric_cols].mean(axis=1)
+        st.write("After calculating 'Industry Average':", avg_esg)
+
+        # Melting dataframe
+        radar_df = avg_esg[["Type", company, "Industry Average"]].melt("Type", value_name="score", var_name="entity")
+        st.write("Final radar_df:", radar_df)
 
         radar_df = avg_esg[["Type", company, "Industry Average"]].melt("Type",
             value_name="score", var_name="entity")
